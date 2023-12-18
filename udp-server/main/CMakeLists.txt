@@ -1,2 +1,2 @@
-idf_component_register(SRCS "udp-server.c" "tasks/scan_aps.c"
+idf_component_register(SRC_DIRS "." "tasks"
                     INCLUDE_DIRS "." "include")

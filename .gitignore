@@ -3,3 +3,4 @@
 */managed_components
 */cmake-build-debug
 */sdkconfig.old
+**/secrets

@@ -47,12 +47,12 @@ void scan_access_points_task(void* pvArgs)
     ESP_ERROR_CHECK(esp_wifi_start());
     esp_log_write(ESP_LOG_INFO, task_name, "Done.\n");
 
-    for (;;)
+    for (int i = 0; i < 5; i++)
     {
         esp_log_write(ESP_LOG_INFO, task_name, "Starting scan...\n");
         ESP_ERROR_CHECK(esp_wifi_scan_start(NULL, false));
         esp_log_write(ESP_LOG_INFO, task_name, "Done.\n");
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
     vTaskDelete(0);
 }
@@ -71,8 +71,9 @@ void print_scan_results(const char* log_tag)
         wifi_ap_record_t record = results[i];
 
         esp_log_write(ESP_LOG_INFO, log_tag,
-                      "\t%i: %02x:%02x:%02x:%02x:%02x:%02x - %s\n",
+                      "\t%i: %i - %02x:%02x:%02x:%02x:%02x:%02x - %s\n",
                       i,
+                      record.rssi,
                       record.bssid[0],
                       record.bssid[1],
                       record.bssid[2],
