@@ -12,9 +12,11 @@
 #include <freertos/task.h>
 
 #include "tasks/access_point_connect.h"
+#include <tasks/udp_server.h>
 #include "secrets/wifi_config.h"
 
 void event_callback(void* event_handler_arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+void shutdown_handler();
 
 void access_point_connect(void* pvArgs)
 {
@@ -33,9 +35,10 @@ void access_point_connect(void* pvArgs)
     esp_log_write(ESP_LOG_INFO, task_name, "Done.\n");
 
     esp_event_handler_register(ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, event_callback, task_name);
+    esp_register_shutdown_handler(shutdown_handler);
 
     esp_log_write(ESP_LOG_INFO, task_name, "creating wifi interface...\n");
-    esp_netif_t* wifi_netif =  esp_netif_create_default_wifi_sta();
+    esp_netif_t* wifi_netif = esp_netif_create_default_wifi_sta();
     esp_log_write(ESP_LOG_INFO, task_name, "Done.\n");
 
     // config wifi
@@ -93,6 +96,16 @@ void event_callback(void* event_handler_arg, esp_event_base_t event_base, int32_
         if (event_id == IP_EVENT_STA_GOT_IP)
         {
             esp_log_write(ESP_LOG_INFO, task_name, "Got IP.\n");
+            TaskHandle_t server_task_handle;
+            xTaskCreate(server_task, "server_task", 4096, NULL, 1, &server_task_handle);
         }
     }
+}
+
+void shutdown_handler()
+{
+    ESP_LOGI("shutdown_hadler", "Shutting down WiFi");
+    ESP_ERROR_CHECK(esp_wifi_disconnect());
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    ESP_ERROR_CHECK(esp_wifi_deinit());
 }
