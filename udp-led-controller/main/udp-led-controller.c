@@ -36,7 +36,7 @@ static void event_callback(void* event_handler_arg, esp_event_base_t event_base,
 
         TaskHandle_t led_updater_task_handle;
         led_updater_params_t* led_updater_params = malloc(sizeof(led_updater_params_t));
-        led_updater_params->led_count = 100;
+        led_updater_params->led_count = 300;
         led_updater_params->queue_size = 50;
         xTaskCreate(led_updater_task, "led_updater_task", 4096, led_updater_params, 2, &led_updater_task_handle);
         break;

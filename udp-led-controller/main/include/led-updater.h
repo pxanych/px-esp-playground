@@ -40,7 +40,7 @@ void led_updater_task(void* pvArgs);
  * \param len size of leds array
  * \param leds
  */
-void submit_update(uint32_t timestamp, uint16_t len, led_color* leds);
+void submit_update(uint16_t len, led_color* leds);
 
 
 #endif //LED_UPDATER_H

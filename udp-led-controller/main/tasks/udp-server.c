@@ -35,41 +35,38 @@ void server_task(void* pvArgs)
         vTaskDelete(NULL);
     }
 
-    size_t buf_size = 2048;
+    const size_t buf_size = 2048;
     uint8_t* buf = malloc(buf_size);
     led_color* leds = malloc(sizeof(led_color) * 600);
     for (;;)
     {
         // ESP_LOGI(TAG, "Wait for msg");
-        size_t rcv_len = recv(sock_fd, buf, buf_size, 0);
+        const size_t rcv_len = recv(sock_fd, buf, buf_size, 0);
         if (rcv_len == 4 && strncmp("kill", (char*)buf, 4) == 0)
         {
             break;
         }
 
-        // validate msg format (expect 4 + 3 * N bytes)
-        if (rcv_len < 7 || (rcv_len - 4) % 3)
+        // validate msg format (expect 3 * N bytes)
+        const int len = rcv_len / 3;
+        if (len < 1 || rcv_len % 3 != 0)
         {
             ESP_LOGW(TAG, "Invalid message format");
             continue;
         }
 
-        uint32_t timestamp = lwip_ntohl(*(uint32_t*)buf);
-        int len = rcv_len - sizeof(timestamp);
-        uint8_t* colors = buf + sizeof(timestamp);
-        int i = 0;
-        while (len > 0)
+        const uint8_t* colors = buf;
+        for(int i = 0; i < len; i++)
         {
-            led_color color = {
-                .red = colors[i * 3],
-                .green = colors[i * 3 + 1],
-                .blue = colors[i * 3 + 2]
+            const int offset = i * 3;
+            const led_color color = {
+                .red = colors[offset + 0],
+                .green = colors[offset + 1],
+                .blue = colors[offset + 2]
             };
             leds[i] = color;
-            len -= 3;
-            i++;
         }
-        submit_update(timestamp, i, leds);
+        submit_update(len, leds);
     }
     free(buf);
     if (closesocket(sock_fd) != 0)
