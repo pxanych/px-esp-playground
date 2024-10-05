@@ -2,11 +2,8 @@
 #include <freertos/FreeRTOS.h>
 #include <driver/gpio.h>
 #include <driver/gptimer.h>
-#include <driver/gptimer_types.h>
 #include <esp_private/panic_internal.h>
 #include <freertos/queue.h>
-
-#include "../../esp-idf/components/esp_driver_gptimer/src/gptimer_priv.h"
 
 bool timerCallback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
 void timerHandlerTask(void* args);
@@ -14,6 +11,7 @@ void timerHandlerTask(void* args);
 typedef struct {
     QueueHandle_t queue_handle;
     gptimer_handle_t timer_handle;
+    uint32_t timer_resolution_hz;
 } MyCtx;
 
 /**
@@ -55,6 +53,7 @@ void app_main(void) {
     MyCtx* pCtx = malloc(sizeof(MyCtx));
     pCtx->queue_handle = queueHandle;
     pCtx->timer_handle = timerHandle;
+    pCtx->timer_resolution_hz = timerResolution;
     if (!xTaskCreate(timerHandlerTask, "timer handler task", 4096, pCtx, 1, &taskHandle))
     {
         panic_abort("failed to create task");
@@ -82,9 +81,9 @@ void timerHandlerTask(void* args)
     MyCtx* pCtx = args;
     gptimer_handle_t gptimer_handle = pCtx->timer_handle;
     QueueHandle_t queue_handle = pCtx->queue_handle;
-    int timer_freq = gptimer_handle->resolution_hz;
+    uint32_t timer_freq = pCtx->timer_resolution_hz;
 
-    int ns_till_next_switch = timer_freq * 1000 / 1;
+    uint32_t ns_till_next_switch = timer_freq * 1000 / 1;
 
     int bitToSet = 0;
     // 0 - gpio4
@@ -104,7 +103,7 @@ void timerHandlerTask(void* args)
         {
             continue;
         }
-        int freq = timer_freq * 1000 / ns_till_next_switch;
+        uint32_t freq = timer_freq * 1000 / ns_till_next_switch;
 
         if (accel > 0 && freq >= target_freq)
         {
@@ -123,8 +122,8 @@ void timerHandlerTask(void* args)
             ns_till_next_switch = ns_till_next_switch / 100 * 95;
         }
 
-        int tgt_ns = 1000000000 / (freq + accel);
-        int dns = (tgt_ns - ns_till_next_switch) / freq;
+        uint32_t tgt_ns = 1000000000 / (freq + accel);
+        uint32_t dns = (tgt_ns - ns_till_next_switch) / freq;
         ns_till_next_switch = ns_till_next_switch + dns;
 
         gptimer_alarm_config_t alarmCfg = { .alarm_count = alarm_event_data.alarm_value + ns_till_next_switch / 1000 };
