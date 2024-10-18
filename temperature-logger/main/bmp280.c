@@ -46,8 +46,6 @@ esp_err_t bmp280_set_config(bmp280_device *bmp280_handle, bmp280_ctrl_meas measu
 }
 
 esp_err_t bmp280_read_data(bmp280_device *bmp280_handle) {
-
-
     uint8_t send_buf = BMP280_REG_PRESS_MSB;
     uint8_t recv_buf[6];
     ESP_ERROR_CHECK(i2c_master_transmit_receive(bmp280_handle->device_handle, &send_buf, 1,
