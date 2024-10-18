@@ -15,6 +15,8 @@
 
 extern const char isrg_root_x1_start[] asm("_binary_isrg_root_x1_pem_start");
 
+static const char HEX_DIGITS[] = "0123456789ABCDEF";
+
 esp_err_t http_event_handler(esp_http_client_event_t *evt);
 
 void sensor_report_task(void *pvArgs) {
@@ -38,17 +40,40 @@ void sensor_report_task(void *pvArgs) {
 
     esp_http_client_set_method(http_client, HTTP_METHOD_POST);
 
-    char post_data[256];
+    const int post_buffer_size = 256;
+    char *post_data = malloc(post_buffer_size);
+    char *auth_header = malloc(65);
+    char *hmac_key = HMAC_KEY;
+    uint32_t hmac_key_length = strlen(hmac_key);
+    auth_header[64] = 0;
     while (1) {
         bmp280_read_data(device);
-        uint32_t pressure_x100 = device->measure_data.pa_x256 * 100 / 256;
-        int32_t temperature_x100 = device->measure_data.deg_c_x100;
+        float pressure_x256 = (float)device->measure_data.pa_x256;
+        float temperature_x100 = (float)device->measure_data.deg_c_x100;
 
-        sprintf(post_data, "{\"temperature\": %li.%02li, \"pressure\": %li.%02li}",
-                temperature_x100 / 100, temperature_x100 % 100,
-                pressure_x100 / 100, pressure_x100 % 100
-        );
-        esp_http_client_set_post_field(http_client, post_data, strlen(post_data));
+        memset(post_data, 0, post_buffer_size);
+        sprintf(post_data, "{\"temperature\": %f, \"pressure\": %f, \"node\": \"%s\"}",
+                temperature_x100 / 100, pressure_x256 / 256, NODE_ID);
+        uint32_t post_data_size = strlen(post_data);
+
+        mbedtls_sha256_context sha256_ctx;
+        mbedtls_sha256_init(&sha256_ctx);
+        mbedtls_sha256_starts(&sha256_ctx, false);
+        mbedtls_sha256_update(&sha256_ctx, (uint8_t *)post_data, post_data_size);
+        mbedtls_sha256_update(&sha256_ctx, (uint8_t *)hmac_key, hmac_key_length);
+        mbedtls_sha256_finish(&sha256_ctx, (uint8_t *)auth_header);
+        mbedtls_sha256_free(&sha256_ctx);
+
+        int i = 32;
+        while (i > 0) {
+            uint8_t byte = auth_header[i - 1];
+            auth_header[i * 2 - 1] = HEX_DIGITS[(byte >> 4) & 0x0f];
+            auth_header[i * 2 - 2] = HEX_DIGITS[byte & 0x0f];
+            i--;
+        }
+
+        esp_http_client_set_header(http_client, "Authorization", auth_header);
+        esp_http_client_set_post_field(http_client, post_data, (int32_t)post_data_size);
 
         esp_err_t err = esp_http_client_perform(http_client);
         if (err == ESP_OK) {
